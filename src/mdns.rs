@@ -1,4 +1,4 @@
-use {Error, Response, Io, RecordKind};
+use {Error, Response, Io};
 
 use std::collections::VecDeque;
 use std::net::{SocketAddr, Ipv4Addr};
@@ -49,8 +49,13 @@ impl mDNS
 
         let interfaces = interfaces?;
 
+        let mut service_name = service_name.to_owned();
+        if !service_name.ends_with(".local") {
+            service_name.push_str(".local");
+        }
+
         Ok(mDNS {
-            service_name: service_name.to_owned(),
+            service_name: service_name,
             sockets: interfaces,
             responses: VecDeque::new(),
         })
