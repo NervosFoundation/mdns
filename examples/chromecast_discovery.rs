@@ -1,4 +1,4 @@
-extern crate mdns;
+extern crate mdns_discover as mdns;
 
 use mdns::{Record, RecordKind};
 use std::net::IpAddr;

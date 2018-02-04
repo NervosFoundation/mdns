@@ -1,4 +1,4 @@
-use {Error, Response, Io};
+use {Error, Response, Io, RecordKind};
 
 use std::collections::VecDeque;
 use std::net::{SocketAddr, Ipv4Addr};
@@ -58,7 +58,7 @@ impl mDNS
 
     pub fn recv(&mut self, token: mio::Token) -> Result<(), Error> {
         let interface = self.sockets.iter_mut().find(|sock| sock.token == token).unwrap();
-        self.responses.extend(interface.recv()?);
+        self.responses.extend(interface.recv(&self.service_name)?);
         Ok(())
     }
 
@@ -115,14 +115,17 @@ impl InterfaceDiscovery
     }
 
     /// Attempts to receive data from the multicast socket.
-    fn recv(&mut self) -> Result<Vec<Response>, Error> {
+    fn recv(&mut self, service_name: &str) -> Result<Vec<Response>, Error> {
         let mut buffer: [u8; 10000] = [0; 10000];
         let (count, _) = self.socket.recv_from(&mut buffer)?;
         let buffer = &buffer[0..count];
 
         if !buffer.is_empty() {
             let raw_packet = dns::Packet::parse(&buffer)?;
-            return Ok(vec![Response::from_packet(&raw_packet)]);
+            let response = Response::from_packet(&raw_packet);
+            if response.answers.iter().any(|record| { record.name == service_name }) {
+                return Ok(vec![response]);
+            }
         }
 
         Ok(vec![])
