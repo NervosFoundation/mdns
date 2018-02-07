@@ -110,10 +110,9 @@ impl InterfaceDiscovery
     fn send(&mut self, service_name: &str) -> Result<(), Error> {
         let mut builder = dns::Builder::new_query(0, false);
         builder.add_question(service_name,
-                             dns::QueryType::PTR,
+                             dns::QueryType::SRV,
                              dns::QueryClass::IN);
         let packet_data = builder.build().unwrap();
-
         let addr = (MULTICAST_ADDR, MULTICAST_PORT).to_socket_addrs().unwrap().next().unwrap();
         self.socket.send_to(&packet_data, &addr)?;
         Ok(())
@@ -126,11 +125,17 @@ impl InterfaceDiscovery
         let buffer = &buffer[0..count];
 
         if !buffer.is_empty() {
-            let raw_packet = dns::Packet::parse(&buffer)?;
-            let response = Response::from_packet(&raw_packet);
-            if response.answers.iter().any(|record| { record.name == service_name }) {
-                return Ok(vec![response]);
-            }
+            match dns::Packet::parse(&buffer) {
+                Ok(packet) => {
+                    let response = Response::from_packet(&packet);
+                    if response.answers.iter().any(|record| { record.name == service_name }) {
+                        return Ok(vec![response]);
+                    }
+                },
+                Err(_) => {
+                    //ignore error;
+                }
+            };
         }
 
         Ok(vec![])
